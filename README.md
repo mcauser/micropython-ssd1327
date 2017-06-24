@@ -1,4 +1,4 @@
-# SSD1327
+# MicroPython SSD1327
 
 A MicroPython library for SSD1327 128x128 4-bit greyscale OLED displays, over I2C.
 
