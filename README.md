@@ -16,7 +16,7 @@ $ ampy put ssd1327.py
 
 **Hello World**
 
-```
+```python
 import ssd1327
 from machine import I2C, Pin
 
@@ -51,3 +51,7 @@ G             | GND
 * [WeMos D1 Mini](https://wiki.wemos.cc/products:d1:d1_mini)
 * [micropython.org](http://micropython.org)
 * [Adafruit Ampy](https://learn.adafruit.com/micropython-basics-load-files-and-run-code/install-ampy)
+
+## License
+
+Licensed under the [MIT License](http://opensource.org/licenses/MIT).
