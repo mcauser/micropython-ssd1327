@@ -71,7 +71,7 @@ class SSD1327:
             SET_DISP, # Display off
             # Resolution and layout
             SET_DISP_START_LINE, 0x00,
-            SET_DISP_OFFSET, 0x20, # Set vertical offset by COM from 0~127
+            SET_DISP_OFFSET, 0x00, # Set vertical offset by COM from 0~127
             # Set re-map
             # Enable column address re-map
             # Disable nibble re-map
@@ -167,6 +167,8 @@ class SSD1327_I2C(SSD1327):
 class SEEED_OLED_96X96(SSD1327_I2C):
     def __init__(self, i2c):
         super().__init__(96, 96, i2c)
+        self.write_cmd(SET_DISP_OFFSET)
+        self.write_cmd(0x20) # Set vertical offset by COM from 0~127
 
     def rotate(self, rotate):
         self.poweroff()
@@ -181,9 +183,7 @@ class SEEED_OLED_96X96(SSD1327_I2C):
         self.write_cmd(SET_GRAYSCALE_TABLE)
         for i in range(0,15):
             self.write_cmd(table[i])
-            
+
 class WS_OLED_128X128(SSD1327_I2C):
     def __init__(self, i2c, addr=0x3c):
         super().__init__(128, 128, i2c, addr)
-        self.write_cmd(SET_DISP_OFFSET)
-        self.write_cmd(0x00)
