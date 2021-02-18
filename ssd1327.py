@@ -27,6 +27,7 @@ SOFTWARE.
 from micropython import const
 import time
 import framebuf
+from uos import uname
 
 
 # commands
@@ -163,10 +164,14 @@ class SSD1327_I2C(SSD1327):
     def write_data(self, buf):
         self.temp[0] = self.addr << 1
         self.temp[1] = REG_DATA # Co=0, D/C#=1
-        self.i2c.start()
-        self.i2c.write(self.temp)
-        self.i2c.write(buf)
-        self.i2c.stop()
+        # check if board is Pi Pico as it doesn't support start, write and stop operations.
+        if uname()[0] == 'rp2':
+            self.i2c.writeto(self.addr, b'\x40' + buf)
+        else:
+            self.i2c.start()
+            self.i2c.write(self.temp)
+            self.i2c.write(buf)
+            self.i2c.stop()
 
 
 class SEEED_OLED_96X96(SSD1327_I2C):
@@ -186,3 +191,9 @@ class SEEED_OLED_96X96(SSD1327_I2C):
         self.write_cmd(SET_GRAYSCALE_TABLE)
         for i in range(0,15):
             self.write_cmd(table[i])
+            
+class WS_OLED_128X128(SSD1327_I2C):
+    def __init__(self, i2c, addr=0x3c):
+        super().__init__(128, 128, i2c, addr)
+        self.write_cmd(SET_DISP_OFFSET)
+        self.write_cmd(0x00)
