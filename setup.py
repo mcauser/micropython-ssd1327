@@ -7,7 +7,7 @@ from setuptools import setup
 setup(
     name='micropython-ssd1327',
     py_modules=['ssd1327'],
-    version='1.0.0',
+    version='1.1.0',
     description='MicroPython library for SSD1327 based OLED displays.',
     long_description='This library lets you update SSD1327 based 128x128 4-bit grayscale OLED displays.',
     keywords='ssd1327 oled micropython',
