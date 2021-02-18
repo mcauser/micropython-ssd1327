@@ -41,12 +41,13 @@ display.text('15 shades of',0,40,15)
 display.text('grey using',0,50,5)
 display.text('GS4_HMSB',0,60,15)
 display.text('MicroPython',0,70,5)
-display.text('v1.9 ESP8266',0,80,15)
+display.text('v1.14',0,80,15)
 display.show()
 
 
 # rotate 180 degrees
 display.rotate(True)
+display.show()
 
 # rotate 0 degrees
 display.write_cmd(0xA2)
@@ -78,13 +79,14 @@ display.show()
 
 # rotate 0 degrees
 display.rotate(False)
-
+display.show()
 
 # scroll the framebuf down 16px
 display.fill(0)
 display.text('Hello World', 0, 0, 15)
 display.show()
 display.scroll(0,16)
+display.show()
 
 
 # corner pixels
@@ -97,6 +99,7 @@ display.show()
 
 
 # random pixels (slow)
+# note: urandom not available on rpi pico
 import uos
 for i in range(0,256):
 	x = uos.urandom(1)[0] // 2
