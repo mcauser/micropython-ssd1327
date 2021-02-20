@@ -24,10 +24,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-__version__ = '1.1.0'
+__version__ = '1.1.1'
 
 from micropython import const
-import time
 import framebuf
 
 # commands
@@ -56,14 +55,25 @@ SET_COMMAND_LOCK      = const(0xFD)
 REG_CMD  = const(0x80)
 REG_DATA = const(0x40)
 
-
 class SSD1327:
-    def __init__(self, width, height, external_vcc):
+    def __init__(self, width=128, height=128):
         self.width = width
         self.height = height
-        self.external_vcc = external_vcc
         self.buffer = bytearray(self.width * self.height // 2)
         self.framebuf = framebuf.FrameBuffer(self.buffer, self.width, self.height, framebuf.GS4_HMSB)
+
+        self.col_addr = ((128 - self.width) // 4, 63 - ((128 - self.width) // 4))
+        # 96x96     (8, 55)
+        # 128x128   (0, 63)
+
+        self.row_addr = (0, self.height - 1)
+        # 96x96     (0, 95)
+        # 128x128   (0, 127)
+
+        self.offset = 128 - self.height
+        # 96x96     32
+        # 128x128   0
+
         self.poweron()
         self.init_display()
 
@@ -73,7 +83,7 @@ class SSD1327:
             SET_DISP, # Display off
             # Resolution and layout
             SET_DISP_START_LINE, 0x00,
-            SET_DISP_OFFSET, 0x00, # Set vertical offset by COM from 0~127
+            SET_DISP_OFFSET, self.offset, # Set vertical offset by COM from 0~127
             # Set re-map
             # Enable column address re-map
             # Disable nibble re-map
@@ -94,20 +104,13 @@ class SSD1327:
             SET_GRAYSCALE_LINEAR, # Use linear greyscale lookup table
             SET_CONTRAST, 0x7f, # Medium brightness
             SET_DISP_MODE, # Normal, not inverted
-            # 96x96:
-            # SET_ROW_ADDR, 0 95,
-            # SET_COL_ADDR, 8, 55,
-            # 128x128:
-            # SET_ROW_ADDR, 0 127,
-            # SET_COL_ADDR, 0, 63,
-            SET_ROW_ADDR, 0x00, self.height - 1,
-            SET_COL_ADDR, ((128 - self.width) // 4), 63 - ((128 - self.width) // 4),
-
+            SET_COL_ADDR, self.col_addr[0], self.col_addr[1],
+            SET_ROW_ADDR, self.row_addr[0], self.row_addr[1],
             SET_SCROLL_DEACTIVATE,
             SET_DISP | 0x01): # Display on
             self.write_cmd(cmd)
         self.fill(0)
-        self.show()
+        self.write_data(self.buffer)
 
     def poweroff(self):
         self.write_cmd(SET_FN_SELECT_A)
@@ -123,16 +126,24 @@ class SSD1327:
         self.write_cmd(SET_CONTRAST)
         self.write_cmd(contrast) # 0-255
 
+    def rotate(self, rotate):
+        self.poweroff()
+        self.write_cmd(SET_DISP_OFFSET)
+        self.write_cmd(self.height if rotate else self.offset)
+        self.write_cmd(SET_SEG_REMAP)
+        self.write_cmd(0x42 if rotate else 0x51)
+        self.poweron()
+
     def invert(self, invert):
         self.write_cmd(SET_DISP_MODE | (invert & 1) << 1 | (invert & 1)) # 0xA4=Normal, 0xA7=Inverted
 
     def show(self):
         self.write_cmd(SET_COL_ADDR)
-        self.write_cmd((128 - self.width) // 4)
-        self.write_cmd(63 - ((128 - self.width) // 4))
+        self.write_cmd(self.col_addr[0])
+        self.write_cmd(self.col_addr[1])
         self.write_cmd(SET_ROW_ADDR)
-        self.write_cmd(0x00)
-        self.write_cmd(self.height - 1)
+        self.write_cmd(self.row_addr[0])
+        self.write_cmd(self.row_addr[1])
         self.write_data(self.buffer)
 
     def fill(self, col):
@@ -141,6 +152,9 @@ class SSD1327:
     def pixel(self, x, y, col):
         self.framebuf.pixel(x, y, col)
 
+    def line(self, x1, y1, x2, y2, col):
+        self.framebuf.line(x1, y1, x2, y2, col)
+
     def scroll(self, dx, dy):
         self.framebuf.scroll(dx, dy)
         # software scroll
@@ -148,37 +162,33 @@ class SSD1327:
     def text(self, string, x, y, col=15):
         self.framebuf.text(string, x, y, col)
 
+    def write_cmd(self):
+        raise NotImplementedError
+
+    def write_data(self):
+        raise NotImplementedError
+
 
 class SSD1327_I2C(SSD1327):
-    def __init__(self, width, height, i2c, addr=0x3c, external_vcc=False):
+    def __init__(self, width, height, i2c, addr=0x3c):
         self.i2c = i2c
         self.addr = addr
         self.cmd_arr = bytearray([REG_CMD, 0])  # Co=1, D/C#=0
         self.data_list = [bytes((REG_DATA,)), None]
-        super().__init__(width, height, external_vcc)
+        super().__init__(width, height)
 
     def write_cmd(self, cmd):
         self.cmd_arr[1] = cmd
         self.i2c.writeto(self.addr, self.cmd_arr)
 
-    def write_data(self, buf):
-        self.data_list[1] = buf
+    def write_data(self, data_buf):
+        self.data_list[1] = data_buf
         self.i2c.writevto(self.addr, self.data_list)
 
 
 class SEEED_OLED_96X96(SSD1327_I2C):
     def __init__(self, i2c):
         super().__init__(96, 96, i2c)
-        self.write_cmd(SET_DISP_OFFSET)
-        self.write_cmd(0x20) # Set vertical offset by COM from 0~127
-
-    def rotate(self, rotate):
-        self.poweroff()
-        self.write_cmd(SET_DISP_OFFSET)
-        self.write_cmd(0x60 if rotate else 0x20) # 0x20=0 degrees, 0x60=180 degrees
-        self.write_cmd(SET_SEG_REMAP)
-        self.write_cmd(0x42 if rotate else 0x51) # 0x51=0 degrees, 0x42=180 degrees
-        self.poweron()
 
     def lookup(self, table):
         # GS0 has no pre-charge and current drive

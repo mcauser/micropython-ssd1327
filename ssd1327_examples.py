@@ -45,35 +45,47 @@ display.text('v1.14',0,80,15)
 display.show()
 
 
+# MicroPython logo
+display.fill(0)
+x = (display.width - 69) // 2
+y = (display.height - 69) // 2
+display.framebuf.fill_rect(x+0,  y+0,  69, 69, 15)
+display.framebuf.fill_rect(x+15, y+15, 3,  54, 0)
+display.framebuf.fill_rect(x+33, y+0,  3,  54, 0)
+display.framebuf.fill_rect(x+51, y+15, 3,  54, 0)
+display.framebuf.fill_rect(x+60, y+56, 4,  7,  0)
+display.show()
+
+
 # rotate 180 degrees
 display.rotate(True)
 display.show()
 
 # rotate 0 degrees
-display.write_cmd(0xA2)
-display.write_cmd(0x20)
-display.write_cmd(0xA0)
+display.write_cmd(ssd1327.SET_DISP_OFFSET) # 0xA2
+display.write_cmd(128 - display.height)
+display.write_cmd(ssd1327.SET_SEG_REMAP) # 0xA0
 display.write_cmd(0x51)
 display.show()
 
 # rotate 0 degrees (flip horizontal)
-display.write_cmd(0xA2)
-display.write_cmd(0x20)
-display.write_cmd(0xA0)
+display.write_cmd(ssd1327.SET_DISP_OFFSET) # 0xA2
+display.write_cmd(128 - display.height)
+display.write_cmd(ssd1327.SET_SEG_REMAP) # 0xA0
 display.write_cmd(0x52)
 display.show()
 
 # rotate 180 degrees
-display.write_cmd(0xA2)
-display.write_cmd(0x60)
-display.write_cmd(0xA0)
+display.write_cmd(ssd1327.SET_DISP_OFFSET) # 0xA2
+display.write_cmd(display.height)
+display.write_cmd(ssd1327.SET_SEG_REMAP) # 0xA0
 display.write_cmd(0x42)
 display.show()
 
 # rotate 180 degrees (flip horizontal)
-display.write_cmd(0xA2)
-display.write_cmd(0x60)
-display.write_cmd(0xA0)
+display.write_cmd(ssd1327.SET_DISP_OFFSET) # 0xA2
+display.write_cmd(display.height)
+display.write_cmd(ssd1327.SET_SEG_REMAP) # 0xA0
 display.write_cmd(0x41)
 display.show()
 
@@ -81,11 +93,14 @@ display.show()
 display.rotate(False)
 display.show()
 
+
 # scroll the framebuf down 16px
+# does not wrap around
 display.fill(0)
-display.text('Hello World', 0, 0, 15)
+for i in range(10):
+	display.text('line {}'.format(i), 0, i*8, 15)
 display.show()
-display.scroll(0,16)
+display.scroll(0,16) # framebuf.scroll
 display.show()
 
 
@@ -157,48 +172,48 @@ display.show()
 display.fill(0)
 x1 = 0
 y1 = 0
-y2 = 95
-for x2 in range(0,97,6):
+y2 = display.height - 1
+for x2 in range(0, display.width + 1, 8):
 	display.framebuf.line(x1, y1, x2, y2, 15)
 	display.show()
-x2 = 95
-for y2 in range(0,97,6):
+x2 = display.width - 1
+for y2 in range(0, display.height + 1, 8):
 	display.framebuf.line(x1, y1, x2, y2, 15)
 	display.show()
 
 display.fill(0)
-x1 = 95
+x1 = display.width - 1
 y1 = 0
-y2 = 95
-for x2 in range(0,97,6):
+y2 = display.height - 1
+for x2 in range(0, display.width + 1, 8):
 	display.framebuf.line(x1, y1, x2, y2, 15)
 	display.show()
 x2 = 0
-for y2 in range(0,97,6):
+for y2 in range(0, display.height + 1, 8):
 	display.framebuf.line(x1, y1, x2, y2, 15)
 	display.show()
 
 display.fill(0)
 x1 = 0
-y1 = 95
+y1 = display.height - 1
 y2 = 0
-for x2 in range(0,97,6):
+for x2 in range(0, display.width + 1, 8):
 	display.framebuf.line(x1, y1, x2, y2, 15)
 	display.show()
-x2 = 95
-for y2 in range(0,97,6):
+x2 = display.width - 1
+for y2 in range(0, display.height + 1, 8):
 	display.framebuf.line(x1, y1, x2, y2, 15)
 	display.show()
 
 display.fill(0)
-x1 = 95
-y1 = 95
+x1 = display.width - 1
+y1 = display.height - 1
 y2 = 0
-for x2 in range(0,97,6):
+for x2 in range(0, display.width + 1, 8):
 	display.framebuf.line(x1, y1, x2, y2, 15)
 	display.show()
 x2 = 0
-for y2 in range(0,97,6):
+for y2 in range(0, display.height + 1, 8):
 	display.framebuf.line(x1, y1, x2, y2, 15)
 	display.show()
 
@@ -265,7 +280,23 @@ def bitmap(data,x,y,w,h):
 	display.write_cmd(y + h)
 	display.write_data(data)
 
-
+# draw many smileys
 for y in range(0,6):
 	for x in range(0,6):
 		bitmap(data, x * 16, y * 16, 15, 15)
+
+
+# optical illusion - crooked lines?
+display.fill(15)
+sq = 12    # square size
+seq = 100  # this magic number gives repititions of sequence 0,4,8,4...
+for y in range(0, display.height, sq+1):
+	offset = int(round(((seq & 3) / 3) * sq))
+	seq >>= 2
+	if seq == 0:
+		seq = 100
+	for x in range(0, display.width, sq*2):
+		display.framebuf.fill_rect(x + offset, y, sq, sq, 0)
+	display.framebuf.hline(0, y + sq, display.width, 6)
+display.show()
+
